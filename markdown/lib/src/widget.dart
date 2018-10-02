@@ -182,14 +182,28 @@ class _MarkdownWidgetState extends State<MarkdownWidget>
 
       String url =
           'mailto:${attr['mailTo']}?subject=$subject&body=${attr['mailBody']}';
-      button = RaisedButton(color: color,
-          child: Text(attr['text']), onPressed: () => _launchURL(url));
+      button = RaisedButton(
+          color: color,
+          child: Text(attr['text']),
+          onPressed: () => _launchURL(url));
     } else if (attr.containsKey('url')) {
-      button = RaisedButton(color: color,
-          child: Text(attr['text']), onPressed: () => _launchURL(attr['url']));
+      Uri uri = Uri.parse(attr['url']);
+      if (uri.scheme == 'http' || uri.scheme == 'https') {
+        button = RaisedButton(
+            color: color,
+            child: Text(attr['text']),
+            onPressed: () => _launchURL(attr['url']));
+      } else {
+        button = RaisedButton(
+            color: color,
+            child: Text(attr['text']),
+            onPressed: () => widget.onTapButton(attr['url']));
+      }
     } else {
-      button = RaisedButton(color: color,
-          child: Text(text), onPressed: () => widget.onTapButton(text));
+      button = RaisedButton(
+          color: color,
+          child: Text(attr['text']),
+          onPressed: () => widget.onTapButton(text));
     }
 
     return button;
