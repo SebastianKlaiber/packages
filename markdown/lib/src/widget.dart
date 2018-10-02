@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:meta/meta.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 import 'builder.dart';
 import 'style_sheet.dart';
 
@@ -16,11 +17,13 @@ import 'style_sheet.dart';
 ///
 /// Used by [MarkdownWidget.onTapLink].
 typedef void MarkdownTapLinkCallback(String href);
+typedef void MarkdownTapButtonCallback(String text);
 
 /// Creates a format [TextSpan] given a string.
 ///
 /// Used by [MarkdownWidget] to highlight the contents of `pre` elements.
-abstract class SyntaxHighlighter { // ignore: one_member_abstracts
+abstract class SyntaxHighlighter {
+  // ignore: one_member_abstracts
   /// Returns the formated [TextSpan] for the given string.
   TextSpan format(String source);
 }
@@ -45,9 +48,10 @@ abstract class MarkdownWidget extends StatefulWidget {
     this.styleSheet,
     this.syntaxHighlighter,
     this.onTapLink,
+    this.onTapButton,
     this.imageDirectory,
-  }) : assert(data != null),
-       super(key: key);
+  })  : assert(data != null),
+        super(key: key);
 
   /// The Markdown to display.
   final String data;
@@ -65,6 +69,8 @@ abstract class MarkdownWidget extends StatefulWidget {
   /// Called when the user taps a link.
   final MarkdownTapLinkCallback onTapLink;
 
+  final Function(String text) onTapButton;
+
   /// The base directory holding images referenced by Img tags with local file paths.
   final Directory imageDirectory;
 
@@ -77,7 +83,8 @@ abstract class MarkdownWidget extends StatefulWidget {
   _MarkdownWidgetState createState() => new _MarkdownWidgetState();
 }
 
-class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuilderDelegate {
+class _MarkdownWidgetState extends State<MarkdownWidget>
+    implements MarkdownBuilderDelegate {
   List<Widget> _children;
   final List<GestureRecognizer> _recognizers = <GestureRecognizer>[];
 
@@ -90,9 +97,8 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
   @override
   void didUpdateWidget(MarkdownWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.data != oldWidget.data
-        || widget.styleSheet != oldWidget.styleSheet)
-      _parseMarkdown();
+    if (widget.data != oldWidget.data ||
+        widget.styleSheet != oldWidget.styleSheet) _parseMarkdown();
   }
 
   @override
@@ -102,7 +108,8 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
   }
 
   void _parseMarkdown() {
-    final MarkdownStyleSheet styleSheet = widget.styleSheet ?? new MarkdownStyleSheet.fromTheme(Theme.of(context));
+    final MarkdownStyleSheet styleSheet = widget.styleSheet ??
+        new MarkdownStyleSheet.fromTheme(Theme.of(context));
 
     _disposeRecognizers();
 
@@ -118,21 +125,19 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
   }
 
   void _disposeRecognizers() {
-    if (_recognizers.isEmpty)
-      return;
-    final List<GestureRecognizer> localRecognizers = new List<GestureRecognizer>.from(_recognizers);
+    if (_recognizers.isEmpty) return;
+    final List<GestureRecognizer> localRecognizers =
+        new List<GestureRecognizer>.from(_recognizers);
     _recognizers.clear();
-    for (GestureRecognizer recognizer in localRecognizers)
-      recognizer.dispose();
+    for (GestureRecognizer recognizer in localRecognizers) recognizer.dispose();
   }
 
   @override
   GestureRecognizer createLink(String href) {
     final TapGestureRecognizer recognizer = new TapGestureRecognizer()
       ..onTap = () {
-      if (widget.onTapLink != null)
-        widget.onTapLink(href);
-    };
+        if (widget.onTapLink != null) widget.onTapLink(href);
+      };
     _recognizers.add(recognizer);
     return recognizer;
   }
@@ -146,6 +151,57 @@ class _MarkdownWidgetState extends State<MarkdownWidget> implements MarkdownBuil
 
   @override
   Widget build(BuildContext context) => widget.build(context, _children);
+
+  @override
+  RaisedButton createButton(String text) {
+    var customElementAttributesRegex = RegExp(r'([A-Za-z]*)=\"([^\"]*)\"');
+
+    Iterable<Match> matches = customElementAttributesRegex.allMatches(text);
+
+    Map attr = Map();
+
+    matches.toList().forEach((item) => attr[item.group(1)] = item.group(2));
+    RaisedButton button;
+    List<String> attrList = attr['class'].split(' ');
+
+    Color color = Colors.grey;
+
+    attrList.forEach((item) {
+      if (item.contains('btn')) {
+        switch (item.split('-').last) {
+          case 'red':
+            color = Colors.red;
+            break;
+        }
+      }
+    });
+
+    if (attr.containsKey('mailTo')) {
+      String subject = attr['mailSubject'];
+      subject = subject.replaceAll(' ', '%20');
+
+      String url =
+          'mailto:${attr['mailTo']}?subject=$subject&body=${attr['mailBody']}';
+      button = RaisedButton(color: color,
+          child: Text(attr['text']), onPressed: () => _launchURL(url));
+    } else if (attr.containsKey('url')) {
+      button = RaisedButton(color: color,
+          child: Text(attr['text']), onPressed: () => _launchURL(attr['url']));
+    } else {
+      button = RaisedButton(color: color,
+          child: Text(text), onPressed: () => widget.onTapButton(text));
+    }
+
+    return button;
+  }
+
+  _launchURL(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw 'Could not launch $url';
+    }
+  }
 }
 
 /// A non-scrolling widget that parses and displays Markdown.
@@ -165,20 +221,21 @@ class MarkdownBody extends MarkdownWidget {
     MarkdownStyleSheet styleSheet,
     SyntaxHighlighter syntaxHighlighter,
     MarkdownTapLinkCallback onTapLink,
+    MarkdownTapButtonCallback onTapButton,
     Directory imageDirectory,
   }) : super(
-    key: key,
-    data: data,
-    styleSheet: styleSheet,
-    syntaxHighlighter: syntaxHighlighter,
-    onTapLink: onTapLink,
-    imageDirectory: imageDirectory,
-  );
+          key: key,
+          data: data,
+          styleSheet: styleSheet,
+          syntaxHighlighter: syntaxHighlighter,
+          onTapLink: onTapLink,
+          onTapButton: onTapButton,
+          imageDirectory: imageDirectory,
+        );
 
   @override
   Widget build(BuildContext context, List<Widget> children) {
-    if (children.length == 1)
-      return children.single;
+    if (children.length == 1) return children.single;
     return new Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: children,
@@ -203,16 +260,18 @@ class Markdown extends MarkdownWidget {
     MarkdownStyleSheet styleSheet,
     SyntaxHighlighter syntaxHighlighter,
     MarkdownTapLinkCallback onTapLink,
+    MarkdownTapButtonCallback onTapButton,
     Directory imageDirectory,
     this.padding: const EdgeInsets.all(16.0),
   }) : super(
-    key: key,
-    data: data,
-    styleSheet: styleSheet,
-    syntaxHighlighter: syntaxHighlighter,
-    onTapLink: onTapLink,
-    imageDirectory: imageDirectory,
-  );
+          key: key,
+          data: data,
+          styleSheet: styleSheet,
+          syntaxHighlighter: syntaxHighlighter,
+          onTapLink: onTapLink,
+          onTapButton: onTapButton,
+          imageDirectory: imageDirectory,
+        );
 
   /// The amount of space by which to inset the children.
   final EdgeInsets padding;

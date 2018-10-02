@@ -6,6 +6,7 @@ import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:path/path.dart' as p;
 
@@ -24,7 +25,7 @@ final Set<String> _kBlockTags = new Set<String>.from(<String>[
   'pre',
   'ol',
   'ul',
-  'hr',
+  'hr'
 ]);
 
 const List<String> _kListTags = const <String>['ul', 'ol'];
@@ -75,6 +76,8 @@ abstract class MarkdownBuilderDelegate {
   ///
   /// The `styleSheet` is the value of [MarkdownBuilder.styleSheet].
   TextSpan formatText(MarkdownStyleSheet styleSheet, String code);
+
+  RaisedButton createButton(String text);
 }
 
 /// Builds a [Widget] tree from parsed Markdown.
@@ -218,6 +221,8 @@ class MarkdownBuilder implements md.NodeVisitor {
           decoration: styleSheet.horizontalRuleDecoration,
           child: child,
         );
+      } else if (element.textContent.startsWith('{Button')) {
+         child = delegate.createButton(element.textContent);
       }
 
       _addBlockChild(child);
