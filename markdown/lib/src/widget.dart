@@ -164,13 +164,16 @@ class _MarkdownWidgetState extends State<MarkdownWidget>
     RaisedButton button;
     List<String> attrList = attr['class'].split(' ');
 
-    Color color = Colors.grey;
+    Color backgroundColor = Colors.grey;
+    Color textColor = Colors.black;
+    String buttonText = attr['text'].toUpperCase();
 
     attrList.forEach((item) {
       if (item.contains('btn')) {
         switch (item.split('-').last) {
           case 'red':
-            color = Colors.red;
+            backgroundColor = Color.fromARGB(255, 226, 6, 19);
+            textColor = Colors.white;
             break;
         }
       }
@@ -183,26 +186,30 @@ class _MarkdownWidgetState extends State<MarkdownWidget>
       String url =
           'mailto:${attr['mailTo']}?subject=$subject&body=${attr['mailBody']}';
       button = RaisedButton(
-          color: color,
-          child: Text(attr['text']),
+          textColor: textColor,
+          color: backgroundColor,
+          child: Text(buttonText),
           onPressed: () => _launchURL(url));
     } else if (attr.containsKey('url')) {
       Uri uri = Uri.parse(attr['url']);
       if (uri.scheme == 'http' || uri.scheme == 'https') {
         button = RaisedButton(
-            color: color,
-            child: Text(attr['text']),
+            textColor: textColor,
+            color: backgroundColor,
+            child: Text(buttonText),
             onPressed: () => _launchURL(attr['url']));
       } else {
         button = RaisedButton(
-            color: color,
-            child: Text(attr['text']),
+            textColor: textColor,
+            color: backgroundColor,
+            child: Text(buttonText),
             onPressed: () => widget.onTapButton(attr['url']));
       }
     } else {
       button = RaisedButton(
-          color: color,
-          child: Text(attr['text']),
+          textColor: textColor,
+          color: backgroundColor,
+          child: Text(buttonText),
           onPressed: () => widget.onTapButton(text));
     }
 

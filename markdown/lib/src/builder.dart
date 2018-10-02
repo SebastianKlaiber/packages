@@ -190,11 +190,11 @@ class MarkdownBuilder implements md.NodeVisitor {
       } else if (tag == 'li') {
         if (_listIndents.isNotEmpty) {
           child = new Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
+              _buildBullet(_listIndents.last),
               new SizedBox(
                 width: styleSheet.listIndent,
-                child: _buildBullet(_listIndents.last),
               ),
               new Expanded(child: child)
             ],
@@ -222,7 +222,7 @@ class MarkdownBuilder implements md.NodeVisitor {
           child: child,
         );
       } else if (element.textContent.startsWith('{Button')) {
-         child = delegate.createButton(element.textContent);
+        child = delegate.createButton(element.textContent);
       }
 
       _addBlockChild(child);
@@ -284,14 +284,23 @@ class MarkdownBuilder implements md.NodeVisitor {
 
   Widget _buildBullet(String listTag) {
     if (listTag == 'ul')
-      return new Text('•',
-          textAlign: TextAlign.center, style: styleSheet.styles['li']);
+      return new ConstrainedBox(
+        constraints: new BoxConstraints(
+          minHeight: 8.0,
+          minWidth: 8.0,
+          maxHeight: 30.0,
+          maxWidth: 30.0,
+        ),
+        child: new DecoratedBox(
+          decoration: new BoxDecoration(color: Color.fromARGB(255, 226, 6, 19)),
+        ),
+      );
 
     final int index = _blocks.last.nextListIndex;
     return new Padding(
       padding: const EdgeInsets.only(right: 5.0),
       child: new Text('${index + 1}.',
-          textAlign: TextAlign.right, style: styleSheet.styles['li']),
+          textAlign: TextAlign.center, style: styleSheet.styles['li']),
     );
   }
 
