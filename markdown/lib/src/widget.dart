@@ -114,7 +114,7 @@ class _MarkdownWidgetState extends State<MarkdownWidget>
     _disposeRecognizers();
 
     // TODO: This can be optimized by doing the split and removing \r at the same time
-    final List<String> lines = widget.data.replaceAll('\r\n', '\n').split('\n');
+    final List<String> lines = widget.data.replaceAll(RegExp(r"\s{4}"), ' ').replaceAll('\r\n', '\n').split('\n');
     final md.Document document = new md.Document(encodeHtml: false);
     final MarkdownBuilder builder = new MarkdownBuilder(
       delegate: this,
