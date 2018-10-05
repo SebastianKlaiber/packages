@@ -194,7 +194,7 @@ class MarkdownBuilder implements md.NodeVisitor {
             children: <Widget>[
               _buildBullet(_listIndents.last),
               new SizedBox(
-                width: styleSheet.listIndent,
+                width: styleSheet.listIndent ?? 24.0,
               ),
               new Expanded(child: child)
             ],
@@ -316,7 +316,7 @@ class MarkdownBuilder implements md.NodeVisitor {
   void _addBlockChild(Widget child) {
     final _BlockElement parent = _blocks.last;
     if (parent.children.isNotEmpty)
-      parent.children.add(new SizedBox(height: styleSheet.blockSpacing));
+      parent.children.add(new SizedBox(height: styleSheet.blockSpacing ?? 16.0));
     parent.children.add(child);
     parent.nextListIndex += 1;
   }
